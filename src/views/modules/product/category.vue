@@ -1,10 +1,23 @@
 <template>
   <div>
+    <el-switch
+      v-model="draggable"
+      active-text="开启拖拽"
+      inactive-text="关闭拖拽">
+    </el-switch>
+    <el-button
+      v-if="draggable"
+      @click="batchSave">
+      批量保存
+    </el-button>
     <el-tree
       :data="menus"
       :props="defaultProps"
       node-key="catId"
       show-checkbox
+      :draggable="draggable"
+      @node-drop="handleDrop"
+      :allow-drop="allowDrop"
       :default-expanded-keys="defaultExpandedKeys"
       :expand-on-click-node="false">
     <span class="custom-tree-node" slot-scope="{ node, data }">
@@ -67,6 +80,10 @@ export default {
   },
   data() {
     return {
+      pCid: [],
+      draggable: false,
+      updateNodes: [],
+      maxLevel: 0,
       dialogTitle: "",
       dialogType: "",
       dialogVisible: false,
@@ -89,6 +106,77 @@ export default {
     }
   },
   methods: {
+    batchSave() {
+      this.$http({
+        url: this.$http.adornUrl('/product/category/update/sort'),
+        method: 'post',
+        data: this.$http.adornData(this.updateNodes, false)
+      }).then(({data}) => {
+        this.$message({
+          message: `菜单顺序等新修改成功`,
+          type: 'success'
+        });
+        //刷新菜单
+        this.getMenus();
+        this.defaultExpandedKeys = this.pCid;
+        this.updateNodes = [];
+        this.maxLevel = 0;
+        // this.pCid = 0;
+      })
+    },
+    handleDrop(draggingNode, dropNode, dropType, ev) {
+      console.log('tree drop: ', draggingNode, dropNode, dropType);
+      let pCId = 0;
+      let sibling = null;
+      if (dropType === "before" || dropType === "after") {
+        pCId = dropNode.parent.data.catId === undefined ? 0 : dropNode.parent.data.catId;
+        sibling = dropNode.parent.childNodes;
+      } else {
+        pCId = dropNode.data.catId;
+        sibling = dropNode.childNodes;
+      }
+      this.pCid.push(pCId);
+      for (let i = 0; i < sibling.length; i++) {
+        if (sibling[i].data.catId === draggingNode.data.catId) {
+          let catLevel = draggingNode.level;
+          if (sibling[i].level !== draggingNode.level) {
+            catLevel = sibling[i].level;
+            this.updateChildNodeLevel(sibling[i]);
+          }
+          this.updateNodes.push({catId: sibling[i].data.catId, sort: i, parentCid: pCId, catLevel: catLevel});
+        } else {
+          this.updateNodes.push({catId: sibling[i].data.catId, sort: i});
+        }
+      }
+      console.log(this.updateNodes)
+    },
+    updateChildNodeLevel(node) {
+      if (node.childNodes.length > 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          let cNode = node.childNodes[i].data;
+          this.updateNodes.push({catId: cNode.catId, catLevel: node.childNodes[i].level});
+          this.updateChildNodeLevel(node.childNodes[i]);
+        }
+      }
+    },
+    allowDrop(draggingNode, dropNode, type) {
+      this.countNodeLevel(draggingNode);
+      let deep = Math.abs(this.maxLevel - draggingNode.level) + 1;
+      if (type === "inner") {
+        return (deep + dropNode.level) <= 3;
+      }
+      return (deep + dropNode.parent.level) <= 3;
+    },
+    countNodeLevel(node) {
+      if (node.childNodes && node.childNodes.length !== 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (node.childNodes[i].level > this.maxLevel) {
+            this.maxLevel = node.childNodes[i].level;
+          }
+          this.countNodeLevel(node.childNodes[i]);
+        }
+      }
+    },
     getMenus() {
       this.$http({
         url: this.$http.adornUrl('/product/category/list/tree'),
