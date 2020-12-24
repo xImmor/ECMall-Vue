@@ -10,7 +10,9 @@
       @click="batchSave">
       批量保存
     </el-button>
+    <el-button type="danger" @click="batchDelete">批量删除</el-button>
     <el-tree
+      ref="tree"
       :data="menus"
       :props="defaultProps"
       node-key="catId"
@@ -106,6 +108,32 @@ export default {
     }
   },
   methods: {
+    batchDelete() {
+      let checkedNodes = this.$refs.tree.getCheckedNodes();
+      let catIdArr = checkedNodes.map(item => {
+        return item.catId
+      });
+      this.$confirm(`是否删除【${catIdArr}】菜单?`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$http({
+          url: this.$http.adornUrl('/product/category/delete'),
+          method: 'post',
+          data: this.$http.adornData(catIdArr, false)
+        }).then(({data}) => {
+          this.$message({
+            message: `菜单删除成功`,
+            type: 'success'
+          });
+          //刷新菜单
+          this.getMenus();
+        })
+      }).catch(() => {
+
+      })
+    },
     batchSave() {
       this.$http({
         url: this.$http.adornUrl('/product/category/update/sort'),
