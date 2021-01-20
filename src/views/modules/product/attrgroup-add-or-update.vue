@@ -3,7 +3,7 @@
     :title="!dataForm.id ? '新增' : '修改'"
     :close-on-click-modal="false"
     :visible.sync="visible">
-    <el-form :model="dataForm" :rules="dataRule" ref="dataForm" @keyup.enter.native="dataFormSubmit()" label-width="80px">
+    <el-form :model="dataForm" :rules="dataRule" ref="dataForm" @keyup.enter.native="dataFormSubmit()" label-width="100px">
     <el-form-item label="???" prop="attrGroupName">
       <el-input v-model="dataForm.attrGroupName" placeholder="???"></el-input>
     </el-form-item>
@@ -16,8 +16,12 @@
     <el-form-item label="??ͼ?" prop="icon">
       <el-input v-model="dataForm.icon" placeholder="??ͼ?"></el-input>
     </el-form-item>
-    <el-form-item label="????????id" prop="catelogId">
-      <el-input v-model="dataForm.catelogId" placeholder="????????id"></el-input>
+    <el-form-item label="????????id" prop="catelogIds">
+<!--      <el-input v-model="dataForm.catelogId" placeholder="????????id"></el-input>-->
+      <el-cascader
+        v-model="dataForm.catelogIds"
+        :props="props"
+        :options="categories"></el-cascader>
     </el-form-item>
     </el-form>
     <span slot="footer" class="dialog-footer">
@@ -32,13 +36,19 @@
     data () {
       return {
         visible: false,
+        categories: [],
+        props: {
+          value: 'catId',
+          label: 'name'
+        },
         dataForm: {
           attrGroupId: 0,
           attrGroupName: '',
           sort: '',
           descript: '',
           icon: '',
-          catelogId: ''
+          catelogIds: [],
+          catelogId: 0
         },
         dataRule: {
           attrGroupName: [
@@ -53,11 +63,14 @@
           icon: [
             { required: true, message: '??ͼ?不能为空', trigger: 'blur' }
           ],
-          catelogId: [
-            { required: true, message: '????????id不能为空', trigger: 'blur' }
+          catelogIds: [
+            { required: true, message: '????????ids不能为空', trigger: 'blur' }
           ]
         }
       }
+    },
+    created() {
+      this.getCategories();
     },
     methods: {
       init (id) {
@@ -82,6 +95,14 @@
           }
         })
       },
+      getCategories() {
+        this.$http({
+          url: this.$http.adornUrl('/product/category/list/tree'),
+          method: 'get'
+        }).then(({data}) => {
+          this.categories = data.data
+        })
+      },
       // 表单提交
       dataFormSubmit () {
         this.$refs['dataForm'].validate((valid) => {
@@ -95,7 +116,7 @@
                 'sort': this.dataForm.sort,
                 'descript': this.dataForm.descript,
                 'icon': this.dataForm.icon,
-                'catelogId': this.dataForm.catelogId
+                'catelogId': this.dataForm.catelogIds[this.dataForm.catelogIds.length - 1]
               })
             }).then(({data}) => {
               if (data && data.code === 0) {
